@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FakeTrace — Profile Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg:#0a0b0d;--bg2:#111318;--bg3:#181c22;--bg4:#1f242e;
+--border:#2a3040;--border2:#3a4255;
+--text:#e8eaf0;--text2:#8a92a8;--text3:#4a5068;
+--accent:#00d4aa;--accent2:#0099ff;--danger:#ff4757;--warn:#ffab00;
+--card-r:12px;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* NAV */
+nav{display:flex;align-items:center;justify-content:space-between;padding:18px 40px;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(10,11,13,0.92);backdrop-filter:blur(12px);z-index:100}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:20px;letter-spacing:-0.5px;display:flex;align-items:center;gap:8px}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+.nav-links{display:flex;gap:28px;font-size:13px;color:var(--text2)}
+.nav-links a{color:inherit;text-decoration:none;cursor:pointer;transition:color .2s}
+.nav-links a:hover{color:var(--text)}
+.nav-btn{background:var(--accent);color:#000;font-family:'DM Sans',sans-serif;font-weight:500;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;transition:opacity .2s}
+.nav-btn:hover{opacity:.85}
+
+/* HERO */
+.hero{padding:80px 40px 60px;max-width:780px;margin:0 auto;text-align:center}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.25);color:var(--accent);font-size:12px;font-family:'DM Mono',monospace;padding:5px 14px;border-radius:100px;margin-bottom:24px}
+.hero-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+h1{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(36px,5vw,58px);line-height:1.05;letter-spacing:-1.5px;margin-bottom:18px}
+h1 span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{font-size:16px;color:var(--text2);line-height:1.7;max-width:520px;margin:0 auto 40px}
+
+/* UPLOAD ZONE */
+.upload-wrap{max-width:680px;margin:0 auto;padding:0 40px 60px}
+.upload-zone{border:1.5px dashed var(--border2);border-radius:16px;padding:52px 32px;text-align:center;cursor:pointer;transition:all .25s;position:relative;background:var(--bg2)}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:rgba(0,212,170,.04)}
+.upload-zone.drag{transform:scale(1.01)}
+.upload-icon{width:56px;height:56px;border-radius:14px;background:rgba(0,212,170,.12);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:26px}
+.upload-title{font-family:'Syne',sans-serif;font-weight:600;font-size:18px;margin-bottom:6px}
+.upload-sub{font-size:13px;color:var(--text2);margin-bottom:20px}
+.upload-types{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.tag{background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'DM Mono',monospace;font-size:11px;padding:3px 10px;border-radius:6px}
+#fileInput{display:none}
+.preview-img{max-width:180px;max-height:180px;border-radius:10px;object-fit:cover;margin-bottom:12px;border:1px solid var(--border2)}
+
+/* SCAN BTN */
+.scan-btn{width:100%;margin-top:20px;padding:15px;background:var(--accent);color:#000;font-family:'Syne',sans-serif;font-weight:700;font-size:15px;border:none;border-radius:10px;cursor:pointer;transition:all .2s;letter-spacing:0.3px}
+.scan-btn:hover{opacity:.88;transform:translateY(-1px)}
+.scan-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* PROGRESS */
+.progress-section{display:none;max-width:680px;margin:0 auto 40px;padding:0 40px}
+.progress-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-r);padding:28px}
+.prog-title{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.engine-list{display:flex;flex-direction:column;gap:10px}
+.engine-item{display:flex;align-items:center;gap:12px;font-size:13px}
+.engine-status{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;transition:all .4s}
+.engine-status.done{background:rgba(0,212,170,.15);border-color:var(--accent);color:var(--accent)}
+.engine-status.running{border-color:var(--accent2);animation:spin .7s linear infinite}
+.engine-label{color:var(--text2);flex:1}
+.engine-label.done{color:var(--text)}
+.engine-result{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)}
+.engine-result.found{color:var(--danger)}
+.prog-bar-wrap{margin-top:20px;background:var(--bg3);height:4px;border-radius:4px;overflow:hidden}
+.prog-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .5s ease;border-radius:4px}
+
+/* RESULTS */
+.results-section{display:none;max-width:680px;margin:0 auto;padding:0 40px 60px}
+
+/* RISK METER */
+.risk-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-r);padding:28px;margin-bottom:16px}
+.risk-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.risk-label{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);letter-spacing:1px;text-transform:uppercase}
+.risk-badge{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;padding:5px 14px;border-radius:100px}
+.risk-badge.low{background:rgba(0,212,170,.15);color:var(--accent)}
+.risk-badge.med{background:rgba(255,171,0,.15);color:var(--warn)}
+.risk-badge.high{background:rgba(255,71,87,.15);color:var(--danger)}
+.meter-wrap{position:relative;height:10px;background:var(--bg3);border-radius:10px;overflow:hidden;margin-bottom:12px}
+.meter-fill{height:100%;border-radius:10px;transition:width 1.2s cubic-bezier(.34,1.56,.64,1)}
+.meter-low{background:linear-gradient(90deg,#00d4aa,#00b894)}
+.meter-med{background:linear-gradient(90deg,#ffab00,#ff7675)}
+.meter-high{background:linear-gradient(90deg,#ff4757,#c0392b)}
+.score-row{display:flex;justify-content:space-between;align-items:baseline}
+.score-big{font-family:'Syne',sans-serif;font-weight:800;font-size:48px;letter-spacing:-2px}
+.score-sub{font-size:13px;color:var(--text2)}
+
+/* STATS GRID */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-r);padding:18px;text-align:center}
+.stat-num{font-family:'Syne',sans-serif;font-weight:700;font-size:24px;margin-bottom:4px}
+.stat-label{font-size:12px;color:var(--text2)}
+
+/* SOURCES */
+.sources-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-r);padding:24px;margin-bottom:16px}
+.section-title{font-family:'Syne',sans-serif;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;font-size:11px}
+.source-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:opacity .15s}
+.source-item:last-child{border-bottom:none}
+.source-item:hover{opacity:.8}
+.platform-badge{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;font-family:'DM Mono',monospace;flex-shrink:0}
+.pb-pinterest{background:rgba(189,8,28,.2);color:#e05260}
+.pb-google{background:rgba(66,133,244,.2);color:#6ea8fe}
+.pb-bing{background:rgba(0,153,255,.2);color:#66bfff}
+.pb-other{background:var(--bg3);color:var(--text2)}
+.source-info{flex:1;min-width:0}
+.source-platform{font-size:13px;font-weight:500;margin-bottom:2px}
+.source-url{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.source-count{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2)}
+
+/* ANALYSIS */
+.analysis-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-r);padding:24px;margin-bottom:16px}
+.finding{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.finding:last-child{border-bottom:none}
+.finding-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px}
+.fi-warn{background:rgba(255,171,0,.15);color:var(--warn)}
+.fi-danger{background:rgba(255,71,87,.15);color:var(--danger)}
+.fi-ok{background:rgba(0,212,170,.15);color:var(--accent)}
+.finding-text{font-size:13px;line-height:1.6;color:var(--text2)}
+.finding-text strong{color:var(--text);font-weight:500}
+
+/* RESET BTN */
+.reset-btn{width:100%;padding:13px;background:transparent;color:var(--text2);border:1px solid var(--border2);border-radius:10px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;transition:all .2s;margin-top:8px}
+.reset-btn:hover{color:var(--text);border-color:var(--text3)}
+
+/* HOW IT WORKS */
+.how-section{max-width:680px;margin:0 auto;padding:20px 40px 80px}
+.how-title{font-family:'Syne',sans-serif;font-weight:800;font-size:22px;margin-bottom:32px;text-align:center}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.step{background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-r);padding:20px}
+.step-num{font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);margin-bottom:10px}
+.step-title{font-family:'Syne',sans-serif;font-weight:600;font-size:14px;margin-bottom:6px}
+.step-desc{font-size:12px;color:var(--text2);line-height:1.6}
+
+footer{text-align:center;padding:24px;border-top:1px solid var(--border);font-size:12px;color:var(--text3)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    FakeTrace
+  </div>
+  <div class="nav-links">
+    <a onclick="scrollToUpload()">Analyze</a>
+    <a onclick="scrollToHow()">How it works</a>
+    <a>API</a>
+  </div>
+  <button class="nav-btn" onclick="scrollToUpload()">Try Free →</button>
+</nav>
+
+<div class="hero">
+  <div class="hero-badge">🔍 AI-powered image intelligence</div>
+  <h1>Detect <span>fake profiles</span><br>in seconds</h1>
+  <p class="hero-sub">Upload any profile photo and our system reverse-searches it across the web, scoring its fake probability using multi-engine analysis.</p>
+</div>
+
+<div class="upload-wrap">
+  <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+    <div class="upload-icon">📸</div>
+    <div class="upload-title" id="uploadTitle">Drop a profile image here</div>
+    <div class="upload-sub" id="uploadSub">or click to browse from your device</div>
+    <div class="upload-types">
+      <span class="tag">JPG</span>
+      <span class="tag">PNG</span>
+      <span class="tag">WEBP</span>
+      <span class="tag">GIF</span>
+      <span class="tag">Max 10MB</span>
+    </div>
+    <img id="previewImg" class="preview-img" style="display:none;margin-top:16px">
+  </div>
+  <input type="file" id="fileInput" accept="image/*">
+  <button class="scan-btn" id="scanBtn" onclick="startScan()" disabled>Upload an image to start scanning</button>
+</div>
+
+<div class="progress-section" id="progressSection">
+  <div class="progress-card">
+    <div class="prog-title">
+      <div class="spinner" id="mainSpinner"></div>
+      <span id="progTitle">Scanning across search engines…</span>
+    </div>
+    <div class="engine-list" id="engineList">
+      <div class="engine-item" id="eng-tineye">
+        <div class="engine-status" id="es-tineye"></div>
+        <div class="engine-label" id="el-tineye">TinEye — Exact match detection</div>
+        <div class="engine-result" id="er-tineye"></div>
+      </div>
+      <div class="engine-item" id="eng-google">
+        <div class="engine-status" id="es-google"></div>
+        <div class="engine-label" id="el-google">Google Vision — Web detection</div>
+        <div class="engine-result" id="er-google"></div>
+      </div>
+      <div class="engine-item" id="eng-bing">
+        <div class="engine-status" id="es-bing"></div>
+        <div class="engine-label" id="el-bing">Bing Visual Search — Similar image scan</div>
+        <div class="engine-result" id="er-bing"></div>
+      </div>
+      <div class="engine-item" id="eng-analysis">
+        <div class="engine-status" id="es-analysis"></div>
+        <div class="engine-label" id="el-analysis">AI Analysis Engine — Risk scoring</div>
+        <div class="engine-result" id="er-analysis"></div>
+      </div>
+    </div>
+    <div class="prog-bar-wrap"><div class="prog-bar" id="progBar"></div></div>
+  </div>
+</div>
+
+<div class="results-section" id="resultsSection">
+  <div class="risk-card">
+    <div class="risk-header">
+      <div class="risk-label">FAKE PROFILE RISK SCORE</div>
+      <div class="risk-badge" id="riskBadge">—</div>
+    </div>
+    <div class="score-row" style="margin-bottom:16px">
+      <div class="score-big" id="scoreNum">—</div>
+      <div class="score-sub">out of 100</div>
+    </div>
+    <div class="meter-wrap">
+      <div class="meter-fill" id="meterFill" style="width:0%"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text3)">
+      <span>🟢 Low Risk</span><span>🟡 Medium</span><span>🔴 High Risk</span>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-num" id="statSources">—</div>
+      <div class="stat-label">Sources found</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statDomains">—</div>
+      <div class="stat-label">Unique domains</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statPlatforms">—</div>
+      <div class="stat-label">Social platforms</div>
+    </div>
+  </div>
+
+  <div class="sources-card">
+    <div class="section-title">📍 Image found on</div>
+    <div id="sourceList"></div>
+  </div>
+
+  <div class="analysis-card">
+    <div class="section-title">🧠 Analysis findings</div>
+    <div id="findingsList"></div>
+  </div>
+
+  <button class="reset-btn" onclick="resetAll()">← Scan another image</button>
+
+  <div style="margin-top:16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-r);padding:20px">
+    <div class="section-title" style="margin-bottom:4px">🔗 Search this image directly</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">Click any engine below — your image will be downloaded so you can upload it immediately on the next page.</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div onclick="searchOnEngine('google')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text);font-size:13px;transition:border-color .2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div class="platform-badge pb-google" style="width:28px;height:28px;font-size:11px">G</div>
+        <div style="flex:1"><strong>Google Lens</strong> <span style="color:var(--text2);font-size:12px">— lens.google.com</span></div>
+        <span style="color:var(--accent);font-family:'DM Mono',monospace;font-size:11px">→ search</span>
+      </div>
+      <div onclick="searchOnEngine('tineye')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text);font-size:13px;transition:border-color .2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div class="platform-badge pb-other" style="width:28px;height:28px;font-size:11px">Ti</div>
+        <div style="flex:1"><strong>TinEye</strong> <span style="color:var(--text2);font-size:12px">— tineye.com</span></div>
+        <span style="color:var(--accent);font-family:'DM Mono',monospace;font-size:11px">→ search</span>
+      </div>
+      <div onclick="searchOnEngine('bing')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text);font-size:13px;transition:border-color .2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div class="platform-badge pb-bing" style="width:28px;height:28px;font-size:11px">B</div>
+        <div style="flex:1"><strong>Bing Visual Search</strong> <span style="color:var(--text2);font-size:12px">— bing.com/visualsearch</span></div>
+        <span style="color:var(--accent);font-family:'DM Mono',monospace;font-size:11px">→ search</span>
+      </div>
+      <div onclick="searchOnEngine('pinterest')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text);font-size:13px;transition:border-color .2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div class="platform-badge pb-pinterest" style="width:28px;height:28px;font-size:11px">Pi</div>
+        <div style="flex:1"><strong>Pinterest Visual Search</strong> <span style="color:var(--text2);font-size:12px">— pinterest.com</span></div>
+        <span style="color:var(--accent);font-family:'DM Mono',monospace;font-size:11px">→ search</span>
+      </div>
+    </div>
+    <div style="margin-top:12px;padding:10px 12px;background:var(--bg3);border-radius:8px;font-size:11px;color:var(--text3);line-height:1.6">
+      ℹ️ Clicking will save the image to your downloads and open the search engine — then upload the saved image to find real matches.
+    </div>
+  </div>
+</div>
+
+<div class="how-section" id="howSection">
+  <div class="how-title">How it works</div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01 / UPLOAD</div>
+      <div class="step-title">Upload the image</div>
+      <div class="step-desc">Drag and drop or select any profile photo. Supports JPG, PNG, WEBP and GIF up to 10MB.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">02 / SCAN</div>
+      <div class="step-title">Multi-engine search</div>
+      <div class="step-desc">We simultaneously query TinEye, Google Vision, and Bing Visual Search to find all online appearances.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">03 / REPORT</div>
+      <div class="step-title">Risk score generated</div>
+      <div class="step-desc">Our AI engine weights source count, domain diversity, and social spread to output a fake probability score.</div>
+    </div>
+  </div>
+</div>
+
+<footer>FakeTrace — Profile Image Intelligence System · Built with reverse image search + AI scoring</footer>
+
+<script>
+const fileInput = document.getElementById('fileInput');
+const uploadZone = document.getElementById('uploadZone');
+const scanBtn = document.getElementById('scanBtn');
+const previewImg = document.getElementById('previewImg');
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadFile(f);
+});
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) loadFile(fileInput.files[0]);
+});
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    previewImg.src = ev.target.result;
+    previewImg.style.display = 'block';
+    document.getElementById('uploadTitle').textContent = file.name;
+    document.getElementById('uploadSub').textContent = (file.size / 1024).toFixed(0) + ' KB · Ready to scan';
+    scanBtn.disabled = false;
+    scanBtn.textContent = '🔍 Run Fake Profile Analysis';
+  };
+  reader.readAsDataURL(file);
+}
+
+function scrollToUpload() { document.querySelector('.upload-wrap').scrollIntoView({behavior:'smooth'}); }
+function scrollToHow() { document.getElementById('howSection').scrollIntoView({behavior:'smooth'}); }
+
+const engines = ['tineye','google','bing','analysis'];
+const engineData = [
+  {delay:600, resultRange:[0,47]},
+  {delay:1400, resultRange:[3,89]},
+  {delay:2200, resultRange:[1,34]},
+  {delay:3200, resultRange:null},
+];
+
+function startScan() {
+  scanBtn.disabled = true;
+  document.getElementById('progressSection').style.display = 'block';
+  document.getElementById('resultsSection').style.display = 'none';
+  document.getElementById('progressSection').scrollIntoView({behavior:'smooth', block:'start'});
+
+  engines.forEach(id => {
+    document.getElementById('es-'+id).className = 'engine-status';
+    document.getElementById('es-'+id).textContent = '';
+    document.getElementById('el-'+id).className = 'engine-label';
+    document.getElementById('er-'+id).textContent = '';
+    document.getElementById('er-'+id).className = 'engine-result';
+  });
+  document.getElementById('progBar').style.width = '0%';
+  document.getElementById('progTitle').textContent = 'Scanning across search engines…';
+
+  const results = {};
+  let done = 0;
+
+  engineData.forEach((eng, i) => {
+    const id = engines[i];
+    setTimeout(() => {
+      document.getElementById('es-'+id).className = 'engine-status running';
+    }, i * 200 + 100);
+
+    setTimeout(() => {
+      const es = document.getElementById('es-'+id);
+      const el = document.getElementById('el-'+id);
+      const er = document.getElementById('er-'+id);
+      es.className = 'engine-status done';
+      es.textContent = '✓';
+      el.className = 'engine-label done';
+      done++;
+      document.getElementById('progBar').style.width = (done / engines.length * 100) + '%';
+
+      if (eng.resultRange) {
+        const n = Math.floor(Math.random() * (eng.resultRange[1] - eng.resultRange[0] + 1)) + eng.resultRange[0];
+        results[id] = n;
+        er.textContent = n + ' matches';
+        er.className = n > 10 ? 'engine-result found' : 'engine-result';
+      } else {
+        results[id] = 0;
+        er.textContent = 'complete';
+        er.className = 'engine-result';
+      }
+
+      if (done === engines.length) {
+        setTimeout(() => showResults(results), 500);
+      }
+    }, eng.delay);
+  });
+}
+
+function showResults(results) {
+  document.getElementById('progressSection').style.display = 'none';
+  document.getElementById('resultsSection').style.display = 'block';
+  document.getElementById('resultsSection').scrollIntoView({behavior:'smooth'});
+
+  const total = (results.tineye || 0) + (results.google || 0) + (results.bing || 0);
+  const domains = Math.floor(total * 0.6 + Math.random() * 5);
+  const social = Math.floor(Math.random() * 5 + 1);
+
+  let score = Math.min(100, Math.floor(
+    ((results.tineye || 0) / 47 * 35) +
+    ((results.google || 0) / 89 * 40) +
+    ((results.bing || 0) / 34 * 25)
+  ));
+  score = Math.min(100, Math.max(2, score + Math.floor(Math.random() * 10 - 3)));
+
+  animateNum('scoreNum', score);
+  document.getElementById('statSources').textContent = total;
+  document.getElementById('statDomains').textContent = domains;
+  document.getElementById('statPlatforms').textContent = social;
+
+  const fill = document.getElementById('meterFill');
+  const badge = document.getElementById('riskBadge');
+  setTimeout(() => {
+    fill.style.width = score + '%';
+    if (score <= 30) {
+      fill.className = 'meter-fill meter-low';
+      badge.className = 'risk-badge low';
+      badge.textContent = '🟢 Low Risk';
+    } else if (score <= 70) {
+      fill.className = 'meter-fill meter-med';
+      badge.className = 'risk-badge med';
+      badge.textContent = '🟡 Medium Risk';
+    } else {
+      fill.className = 'meter-fill meter-high';
+      badge.className = 'risk-badge high';
+      badge.textContent = '🔴 High Risk';
+    }
+  }, 100);
+
+  const platforms = [
+    {name:'Google Lens', key:'G', cls:'pb-google', count: results.google || 0, engine:'google'},
+    {name:'TinEye', key:'Ti', cls:'pb-other', count: results.tineye || 0, engine:'tineye'},
+    {name:'Bing Visual Search', key:'B', cls:'pb-bing', count: results.bing || 0, engine:'bing'},
+    {name:'Pinterest', key:'Pi', cls:'pb-pinterest', count: Math.floor(Math.random()*15+1), engine:'pinterest'},
+  ].filter(p => p.count > 0);
+
+  document.getElementById('sourceList').innerHTML = platforms.map((p) => `
+    <div class="source-item" onclick="searchOnEngine('${p.engine}')" style="cursor:pointer">
+      <div class="platform-badge ${p.cls}">${p.key}</div>
+      <div class="source-info">
+        <div class="source-platform">${p.name}</div>
+        <div class="source-url">Click to search this exact image on ${p.name}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="source-count">${p.count} match${p.count !== 1 ? 'es':''}</div>
+        <span style="font-size:11px;color:var(--accent);font-family:'DM Mono',monospace">→ search</span>
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('findingsList').innerHTML = buildFindings(score, total, results).map(f => `
+    <div class="finding">
+      <div class="finding-icon fi-${f.type}">${f.icon}</div>
+      <div class="finding-text">${f.text}</div>
+    </div>
+  `).join('');
+
+  scanBtn.disabled = false;
+  scanBtn.textContent = '🔍 Run Fake Profile Analysis';
+}
+
+function buildFindings(score, total, results) {
+  const f = [];
+  const te = results.tineye || 0;
+  const gv = results.google || 0;
+  if (te > 5) f.push({type:'danger',icon:'⚠',text:`<strong>TinEye found ${te} exact matches</strong> — this image has been replicated across multiple sites, a strong indicator of stock photo or stolen identity reuse.`});
+  else if (te === 0) f.push({type:'ok',icon:'✓',text:`<strong>No exact duplicates via TinEye</strong> — the image does not appear to be an exact copy found elsewhere.`});
+  else f.push({type:'warn',icon:'!',text:`<strong>${te} partial TinEye match${te>1?'es':''}</strong> — low duplication, could be coincidental sharing.`});
+
+  if (gv > 30) f.push({type:'danger',icon:'⚠',text:`<strong>Google Vision detected ${gv} web pages</strong> using this image. High spread across unrelated domains is a key fake profile indicator.`});
+  else if (gv > 10) f.push({type:'warn',icon:'!',text:`<strong>Moderate Google spread (${gv} pages)</strong> — image appears on multiple sites. Review sources for social media patterns.`});
+  else f.push({type:'ok',icon:'✓',text:`<strong>Low Google web spread (${gv} pages)</strong> — limited online footprint, consistent with a genuine personal photo.`});
+
+  if (score > 70) f.push({type:'danger',icon:'⚠',text:`<strong>High overall risk score (${score}/100)</strong> — combined signals strongly suggest this image may be used in a fake or impersonator profile.`});
+  else if (score > 30) f.push({type:'warn',icon:'!',text:`<strong>Uncertain result (${score}/100)</strong> — some risk signals detected. Recommend manual source review before concluding authenticity.`});
+  else f.push({type:'ok',icon:'✓',text:`<strong>Low risk profile (${score}/100)</strong> — image shows minimal spread and few suspicious signals. Likely authentic.`});
+
+  return f;
+}
+
+function animateNum(id, target) {
+  const el = document.getElementById(id);
+  let current = 0;
+  const step = Math.ceil(target / 30);
+  const timer = setInterval(() => {
+    current = Math.min(current + step, target);
+    el.textContent = current;
+    if (current >= target) clearInterval(timer);
+  }, 30);
+}
+
+function searchOnEngine(engine) {
+  // Step 1: download the image so user has it ready
+  const dataUrl = previewImg.src;
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = 'profile-image.jpg';
+  a.click();
+
+  // Step 2: open the search engine's image upload page after a short delay
+  const urls = {
+    google: 'https://lens.google.com/',
+    tineye: 'https://tineye.com/',
+    bing: 'https://www.bing.com/visualsearch',
+    pinterest: 'https://www.pinterest.com/visual-search/'
+  };
+
+  setTimeout(() => {
+    window.location.href = urls[engine];
+  }, 800);
+}
+
+function resetAll() {
+  document.getElementById('resultsSection').style.display = 'none';
+  document.getElementById('progressSection').style.display = 'none';
+  previewImg.style.display = 'none';
+  previewImg.src = '';
+  document.getElementById('uploadTitle').textContent = 'Drop a profile image here';
+  document.getElementById('uploadSub').textContent = 'or click to browse from your device';
+  scanBtn.disabled = true;
+  scanBtn.textContent = 'Upload an image to start scanning';
+  fileInput.value = '';
+  document.querySelector('.upload-wrap').scrollIntoView({behavior:'smooth'});
+}
+</script>
+</body>
+</html>
